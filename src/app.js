@@ -13,6 +13,9 @@ app.use(express.json());
 const publicPath = path.join(__dirname, "../public");
 app.use(express.static(publicPath));
 
+const uploadPath = path.join(__dirname, "../uploads");
+app.use("/uploads", express.static(uploadPath));
+
 app.use("/api", router);
 
 app.use(errorMiddleware);

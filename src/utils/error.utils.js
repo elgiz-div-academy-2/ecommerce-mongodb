@@ -12,7 +12,7 @@ class ValidationError extends AppError {
 }
 
 class UnauthorizedError extends AppError {
-  constructor(message) {
+  constructor(message = "unauthorized") {
     super(message, 401);
   }
 }

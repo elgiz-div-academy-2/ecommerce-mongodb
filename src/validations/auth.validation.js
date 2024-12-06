@@ -10,6 +10,7 @@ const register = Joi.object({
   password: Joi.string().min(3).max(30).required(),
   fullName: Joi.string().trim().optional(),
   phone: Joi.string()
+    .required()
     .pattern(/^\+?[1-9]\d{1,14}(\s?\(?\d+\)?[\s\-\d]*)?$/)
     .message("Invalid phone number format."),
 });

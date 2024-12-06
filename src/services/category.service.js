@@ -43,6 +43,9 @@ const deleteCategory = async (id) => {
   let list = await Category.find().lean();
 
   let category = await Category.findById(id).lean();
+
+  if (!category) throw new NotFoundError("Category is not found");
+
   category = subCategories(list, category);
 
   let simplifedList = simplifySubCategories(category);
