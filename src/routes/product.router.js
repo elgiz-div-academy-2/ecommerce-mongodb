@@ -20,7 +20,19 @@ productRouter.post(
   validationMiddleware(productValidation.create),
   productController.create
 );
-productRouter.post("/:id", authMiddleware, roleMiddleware("admin"), () => {});
+productRouter.post(
+  "/:id",
+  authMiddleware,
+  roleMiddleware("admin"),
+  productController.update
+);
+productRouter.post(
+  "/:id/variant",
+  authMiddleware,
+  roleMiddleware("admin"),
+  validationMiddleware(productValidation.upsertVariant),
+  productController.upsertVariants
+);
 productRouter.delete("/:id", authMiddleware, roleMiddleware("admin"), () => {});
 
 module.exports = productRouter;

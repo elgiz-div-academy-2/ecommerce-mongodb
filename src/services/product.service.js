@@ -1,24 +1,48 @@
 const Product = require("../models/Product.model");
-const { NotFoundError, ValidationError } = require("../utils/error.utils");
+const { NotFoundError } = require("../utils/error.utils");
 const generateSlug = require("../utils/slug.util");
 
 const list = async (filter = {}) => {
   let query = Product.find();
 
+  let where = {};
+
   if (filter.categories) {
-    query.in("categories", filter.categories);
-  }
-  if (filter.minPrice) {
-    query.gte("price", filter.minPrice); // greater than or equal
-  }
-  if (filter.maxPrice) {
-    query.lte("price", filter.maxPrice); // less than or equal
+    where.categories = {
+      $in: filter.categories,
+    };
   }
 
+  if (filter.minPrice) {
+    where["variants.price"] = {
+      $gte: filter.minPrice,
+    };
+  }
+  if (filter.maxPrice) {
+    if (!where["variants.price"])
+      where["variants.price"] = {
+        $lte: filter.maxPrice,
+      };
+    else where["variants.price"].$lte = filter.maxPrice;
+  }
+
+  if (filter.color) {
+    where["variants.specs.color"] = filter.color;
+  }
+
+  query.where(where);
+  query.limit(filter.limit || 10);
+  query.skip(filter.limit * (filter.page - 1));
+
   query.populate("categories");
-  query.populate("images");
-  let result = await query;
-  return result;
+  query.populate("variants.images");
+  let products = await query;
+
+  const total = await Product.countDocuments(where);
+  return {
+    products,
+    total,
+  };
 };
 
 const create = async (params) => {
@@ -26,6 +50,40 @@ const create = async (params) => {
     params.slug = generateSlug(params.title);
   }
   let product = new Product(params);
+  await product.save();
+
+  return product;
+};
+
+const upsertVariant = async (id, params) => {
+  const product = await Product.findById(id);
+
+  if (!product) throw new NotFoundError("Product is not found");
+
+  product.variants = product.variants || [];
+  const { variants } = product;
+
+  const variant = variants.find((variant) => {
+    let checkSpec = Object.entries(variant.specs).some(([key, value]) => {
+      return params.specs[key] !== value;
+    });
+
+    return checkSpec === false;
+  });
+
+  params.slug =
+    params.slug ||
+    variant?.slug ||
+    generateSlug(`${Object.values(params.specs).join("-")}`);
+
+  if (variant) {
+    for (let [key, value] of params) {
+      variant[key] = value;
+    }
+  } else {
+    product.variants.push(params);
+  }
+
   await product.save();
 
   return product;
@@ -47,6 +105,7 @@ const productService = {
   list,
   create,
   update,
+  upsertVariant,
   deleteProduct,
 };
 
