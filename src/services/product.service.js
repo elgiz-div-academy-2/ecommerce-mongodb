@@ -1,5 +1,5 @@
-const Product = require("../models/Product.model");
-const { NotFoundError } = require("../utils/error.utils");
+const { Product } = require("../models/Product.model");
+const { NotFoundError, ValidationError } = require("../utils/error.utils");
 const generateSlug = require("../utils/slug.util");
 
 const list = async (filter = {}) => {
@@ -13,21 +13,48 @@ const list = async (filter = {}) => {
     };
   }
 
-  if (filter.minPrice) {
-    where["variants.price"] = {
-      $gte: filter.minPrice,
-    };
-  }
-  if (filter.maxPrice) {
-    if (!where["variants.price"])
-      where["variants.price"] = {
-        $lte: filter.maxPrice,
-      };
-    else where["variants.price"].$lte = filter.maxPrice;
+  if (filter.search) {
+    where.$and = [
+      {
+        $or: [
+          {
+            title: { $regex: filter.search, $options: "i" },
+          },
+          {
+            description: { $regex: filter.search, $options: "i" },
+          },
+        ],
+      },
+    ];
   }
 
-  if (filter.color) {
-    where["variants.specs.color"] = filter.color;
+  for (let [key, value] of Object.entries(filter)) {
+    if (["categories", "page", "limit", "search"].includes(key)) continue;
+    if (value[0] === "[") {
+      let [min, max] = value
+        .slice(1, -1)
+        .split(",")
+        .map((item) => +item.trim());
+
+      where[`variants.${key}`] = {
+        $lte: max,
+        $gte: min,
+      };
+    } else if (value[0] === "<") {
+      where[`variants.${key}`] = {
+        $lte: value.slice(1),
+      };
+    } else if (value[0] === ">") {
+      where[`variants.${key}`] = {
+        $gte: value.slice(1),
+      };
+    } else if (value.includes(",")) {
+      where[`variants.${key}`] = {
+        $in: value.split(",").map((item) => item.trim()),
+      };
+    } else {
+      where[`variants.${key}`] = value;
+    }
   }
 
   query.where(where);
@@ -60,15 +87,27 @@ const upsertVariant = async (id, params) => {
 
   if (!product) throw new NotFoundError("Product is not found");
 
+  for (let [key, value] of Object.entries(params.specs)) {
+    let productSpec = product.specs.find((spec) => spec.key === key);
+    if (!productSpec)
+      throw new ValidationError(`${key} speciality is not exists in product`);
+
+    let productSpecItem = productSpec.values.find((item) => item.key === value);
+    if (!productSpecItem)
+      throw new ValidationError(`${value} is not found in ${key} speciality`);
+  }
+
   product.variants = product.variants || [];
   const { variants } = product;
 
   const variant = variants.find((variant) => {
-    let checkSpec = Object.entries(variant.specs).some(([key, value]) => {
-      return params.specs[key] !== value;
-    });
+    let checkSpec = Object.entries(Object.fromEntries(variant.specs)).every(
+      ([key, value]) => {
+        return params.specs[key] === value;
+      }
+    );
 
-    return checkSpec === false;
+    return checkSpec;
   });
 
   params.slug =
@@ -77,7 +116,7 @@ const upsertVariant = async (id, params) => {
     generateSlug(`${Object.values(params.specs).join("-")}`);
 
   if (variant) {
-    for (let [key, value] of params) {
+    for (let [key, value] of Object.entries(params)) {
       variant[key] = value;
     }
   } else {

@@ -14,9 +14,12 @@ const list = Joi.object({
       return categories;
     })
     .message("Categories ids are not valid"),
-  minPrice: Joi.number().optional().min(1),
-  maxPrice: Joi.number().optional().min(1),
-  color: Joi.string().optional(),
+  // minPrice: Joi.number().optional().min(1),
+  // maxPrice: Joi.number().optional().min(1),
+  "specs.color": Joi.string().optional(),
+  price: Joi.string().optional(),
+  size: Joi.string().optional(),
+  search: Joi.string().optional(),
 }).concat(pageValidation);
 
 const create = Joi.object({

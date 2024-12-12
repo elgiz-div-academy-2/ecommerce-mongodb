@@ -5,6 +5,7 @@ const categoryRouter = require("./category.router");
 const uploadRouter = require("./upload.router");
 const authMiddleware = require("../middlewares/auth.middleware");
 const productRouter = require("./product.router");
+const orderRouter = require("./order.router");
 
 const router = Router();
 
@@ -13,5 +14,6 @@ router.use("/user", authMiddleware, userRouter);
 router.use("/category", categoryRouter);
 router.use("/upload", uploadRouter);
 router.use("/product", productRouter);
+router.use("/order", authMiddleware, orderRouter);
 
 module.exports = router;

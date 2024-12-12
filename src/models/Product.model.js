@@ -94,4 +94,7 @@ const ProductSchema = new Schema(
 
 const Product = model("Product", ProductSchema);
 
-module.exports = Product;
+module.exports = {
+  Product,
+  ProductVariantSchema,
+};
